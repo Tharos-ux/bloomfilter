@@ -3,6 +3,8 @@
 #include <cmath>
 #include <fstream>
 #include <tuple>
+#include <vector>
+#include <bitset>
 #include "hash.h"
 
 using namespace std;
@@ -10,17 +12,21 @@ using namespace std;
 class BloomFilter
 {
 public:
-    uint64_t *filter;
+    // n is not constant so no bitset
     uint64_t hash_func_number;
     uint64_t bloom_size;
+    vector<bool> filter;
     /** Constructor for a BloomFilter object.
      * @param n size of filter in bits
      * @param nf number of successive hash functions to apply
      */
     BloomFilter(int n, int nf)
     {
+        // will store the size of the bloomfilter
         bloom_size = n;
-        filter = new uint64_t[n / 8 + 1];
+        // filter itself
+        filter = vector<bool>(n, false);
+        // number of successive hash functions
         hash_func_number = nf;
     }
 
@@ -29,15 +35,57 @@ public:
      */
     void add_value(uint64_t value_to_hash)
     {
-        multihash(value_to_hash, filter, hash_func_number, bloom_size - 1);
+        // std::cout << "Define?";
+        uint64_t *hashes = new uint64_t[bloom_size / 8 + 1];
+        multihash(value_to_hash, hashes, hash_func_number, bloom_size - 1);
+        // std::cout << "Crash?";
+        for (uint64_t i_hash = 0; i_hash < bloom_size / 8 + 1; i_hash++)
+        {
+            cout << "i_hash = " << i_hash << "\n";
+            // getting binary hashed value at index i
+            bitset<8> binary_code = bitset<8>(hashes[i_hash]);
+            // changing filter positions, iterating through the vector
+            for (uint64_t j_boolvector = i_hash * 8 + 1; j_boolvector < i_hash * 8 + 9; j_boolvector++)
+            {
+                cout << "   j_boolvector = " << j_boolvector << " ; bitset pos = " << j_boolvector - (i_hash * 8) - 1 << " ; bitset content = " << binary_code[j_boolvector - (i_hash * 8) - 1] << "\n";
+                if (binary_code[j_boolvector - (i_hash * 8) - 1] == 1)
+                {
+                    filter[j_boolvector] = true;
+                }
+                cout << "   >> Returning component " << filter[j_boolvector] << "\n";
+            }
+        }
+        return;
     }
 
     /** Search for a kmer in the filter
+     * A kmer is in if all bit which represents the kmer are
      * @param value_to_search encoded kmer
      * @return A boolean about the presence of the kmer
      */
     bool is_present(uint64_t value_to_search)
     {
+        // hashing value we search for
+        uint64_t *hashes = new uint64_t[bloom_size / 8 + 1];
+        multihash(value_to_search, hashes, hash_func_number, bloom_size - 1);
+        for (uint64_t i_hash = 0; i_hash < bloom_size / 8 + 1; i_hash++)
+        {
+            // getting binary hashed value at index i
+            bitset<8> binary_code = bitset<8>(hashes[i_hash]);
+
+            for (uint64_t j_boolvector = i_hash * 8 + 1; j_boolvector < i_hash * 8 + 9; j_boolvector++)
+            {
+                if (binary_code[j_boolvector - i_hash * 8])
+                {
+                    if (!filter[j_boolvector])
+                    {
+                        // getting one value not equal to 1 here means kmer is absent
+                        return false;
+                    }
+                }
+            }
+        }
+
         return true;
     }
 };
@@ -80,6 +128,7 @@ std::tuple<char, int> read_fasta(string filename, long position)
     return std::make_tuple('\0', fasta_file.tellg());
 }
 
+// TODO rework func in order to re-use precalculated kmer if exists
 /** Returns the next clean kmer from the file
  * @param filename Path to the file to read
  * @param k k-mer length
@@ -88,11 +137,13 @@ std::tuple<char, int> read_fasta(string filename, long position)
  */
 std::tuple<string, long> next_kmer(string filename, int k, long previous_position)
 {
+    // std::cout << "Entering?";
     long cursor_previous_kmer = previous_position;
     long cursor;
     char current_char;
     string kmer;
 
+    // std::cout << "Reading?";
     // getting starting point for next kmer
     tie(current_char, cursor) = read_fasta(filename, cursor_previous_kmer);
     cursor_previous_kmer = cursor;
@@ -301,19 +352,22 @@ int main(int argc, char *argv[])
     long previous_position = 0;
     while (previous_position < last_char - k + 1)
     {
+        // std::cout << "Iterate?";
         tie(kmer, previous_position) = next_kmer(filename, k, previous_position);
+        // std::cout << "Add?";
         my_bf.add_value(encode_kmer(kmer));
         std::cout << "\nKmer is " << kmer << " at position " << previous_position << " and reverse complement is " << reverse_complement(kmer) << " we select " << choose_kmer(kmer) << " encoded as " << encode_kmer(kmer) << "\n";
-        for (uint64_t i; i < n / 8 + 1; i++)
-        {
-            std::cout << my_bf.filter[i];
-        }
     }
 
+    uint64_t good_tries = 0;
     // Executing research requests on the bloom filter
     for (int i = 0; i < r; i++)
     {
-        my_bf.is_present(encode_kmer(generate_kmer(k)));
+        if (my_bf.is_present(encode_kmer(generate_kmer(k))))
+        {
+            good_tries += 1;
+        }
     }
+    std::cout << "Across " << r << " randomly generated k-mers, " << good_tries << " were in filter!";
     return 0;
 }
