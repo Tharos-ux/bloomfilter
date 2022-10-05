@@ -11,5 +11,4 @@ Parameters are checked within the main function, and program will terminate if a
 + **nf** is the number of successive hash functions we will apply on encoded kmers. It should be in the interval [ 1 : 64 ]
 + **r** is the number of randoms kmers we ask if they are in our data structure. Should be positive
 ## Known issues
-+ Needs to verify if last chars of file are correct (menaning last kmers are good)
 + If the file is not a true fasta file, program will fail to return coherent results
