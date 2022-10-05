@@ -6,9 +6,9 @@ Then, program may be executed with `./bf path_to_file.fasta k n nf r` (same orde
 Parameters are checked within the main function, and program will terminate if any parameter does not match specification.
 
 + **path_to_file.fasta** must link to an existing file
-+ **k** is the kmer size. It should be in the interval [1:31]
-+ **n** is the size of the bloom filter. It should be in the interval [1:$2^{34}$]
-+ **nf** is the number of successive hash functions we will apply on encoded kmers. It should be in the interval [1:64]
++ **k** is the kmer size. It should be in the interval [ 1 : 31 ]
++ **n** is the size of the bloom filter. It should be in the interval [ 1 : $2^{34}$ ]
++ **nf** is the number of successive hash functions we will apply on encoded kmers. It should be in the interval [ 1 : 64 ]
 + **r** is the number of randoms kmers we ask if they are in our data structure. Should be positive
 ## Known issues
 + Needs to verify if last chars of file are correct (menaning last kmers are good)
